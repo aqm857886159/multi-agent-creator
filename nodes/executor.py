@@ -6,6 +6,10 @@ from core.state import RadarState, ContentItem, LeadItem
 from core.tool_registry import registry
 from core.tool_loader import load_tools_from_config
 from core.quality_gate import AdaptiveQualityGate, FeedbackLoopManager, FeedbackLoopGuard
+from core.memory import compress_candidates_if_needed
+
+# 🔑 P0: 候选内容压缩阈值
+CANDIDATES_COMPRESS_THRESHOLD = 100
 
 DEFAULT_PARAMS = {
     "web_search": {"limit": 20, "depth": "advanced"},  # 🔑 15→20 (低成本扩容)
@@ -148,6 +152,9 @@ def run_executor(state: RadarState) -> Dict[str, Any]:
                 _harvest_sources(state, new_items, tool_name)
                 _update_topic_progress(state, topic_hint, new_count)
                 _log_collection_summary(state, tool_name, topic_hint, new_count, result.summary)
+                
+                # 🔑 P0: 检查是否需要压缩候选内容到外部存储
+                _maybe_compress_candidates(state)
             else:
                 _log_collection_summary(state, tool_name, topic_hint, 0, "未获取到可用的数据")
             _mark_platform_search_done(state, tool_name)
@@ -170,17 +177,32 @@ def run_executor(state: RadarState) -> Dict[str, Any]:
             "discovered_sources": state.discovered_sources,
             "task_queue": state.task_queue,  # 🔑 新增: 返回更新后的任务队列
             "completed_tasks": state.completed_tasks,  # 🔑 新增
-            "engine_progress": state.engine_progress  # 🔑 新增
+            "engine_progress": state.engine_progress,  # 🔑 新增
+            "candidates_externalized": state.candidates_externalized  # 🔑 P0: 返回外部化标记
         }
         
     except Exception as e:
         print(f"❌ Execution Error: {e}")
         last_entry["tool_result"] = {"status": "error", "error": str(e)}
+        
+        # 🔑 P0: 记录错误到 error_history（Manus最佳实践：保留失败尝试）
+        error_record = {
+            "tool_name": tool_name,
+            "tool_args": tool_args,
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "timestamp": datetime.now().isoformat(),
+            "reasoning": tool_call.get("reasoning", "")[:200]  # 保留部分reasoning便于分析
+        }
+        state.error_history.append(error_record)
+        print(f"   📝 错误已记录到 error_history (共 {len(state.error_history)} 条)")
+        
         return {
             "plan_status": "planning",
-            "leads": state.leads,  # 🔑 修复：异常时也要返回
+            "leads": state.leads,
             "pending_monitors": state.pending_monitors,
-            "discovered_sources": state.discovered_sources
+            "discovered_sources": state.discovered_sources,
+            "error_history": state.error_history  # 🔑 返回更新后的错误历史
         }
 
 def _apply_default_params(tool_name: str, tool_args: Dict[str, Any]):
@@ -502,3 +524,62 @@ def _mark_task_completed(state: RadarState, task_id: str):
             if task_id not in state.completed_tasks:
                 state.completed_tasks.append(task_id)
             break
+
+
+def _maybe_compress_candidates(state: RadarState):
+    """
+    🔑 P0: 检查并压缩候选内容到外部存储
+    
+    当候选内容超过阈值时，将完整数据存储到文件系统，
+    内存中只保留轻量引用，减少 LLM 上下文负担。
+    """
+    if state.candidates_externalized:
+        # 已经压缩过，不重复处理
+        return
+    
+    if len(state.candidates) < CANDIDATES_COMPRESS_THRESHOLD:
+        # 未达到阈值，不压缩
+        return
+    
+    try:
+        # 转换为字典列表（FileMemory 需要字典格式）
+        candidates_dict = [c.model_dump() for c in state.candidates]
+        
+        # 压缩并存储
+        compressed, was_compressed = compress_candidates_if_needed(
+            candidates_dict, 
+            threshold=CANDIDATES_COMPRESS_THRESHOLD
+        )
+        
+        if was_compressed:
+            # 更新状态：用压缩引用替换完整数据
+            # 注意：这里我们保留原始 ContentItem 对象，但标记已外部化
+            # 完整数据已存储到 data/memory/candidates/
+            state.candidates_externalized = True
+            print(f"   💾 候选内容已外部化存储 ({len(state.candidates)} 条)")
+            state.logs.append(f"【存储】{len(state.candidates)} 条候选内容已外部化到文件系统")
+    except Exception as e:
+        # 压缩失败不影响主流程
+        print(f"   ⚠️ 外部化存储失败: {e}")
+
+
+def get_error_summary_for_planner(state: RadarState, limit: int = 3) -> str:
+    """
+    🔑 P0: 生成错误摘要供 Planner 参考
+    
+    返回最近的错误记录摘要，帮助 LLM 避免重复犯错。
+    """
+    if not state.error_history:
+        return ""
+    
+    recent_errors = state.error_history[-limit:]
+    summary_lines = ["【最近错误记录】"]
+    
+    for err in recent_errors:
+        tool = err.get("tool_name", "unknown")
+        error_type = err.get("error_type", "Error")
+        error_msg = err.get("error", "")[:100]
+        summary_lines.append(f"- {tool}: {error_type} - {error_msg}")
+    
+    summary_lines.append("请避免重复上述失败的操作。")
+    return "\n".join(summary_lines)

@@ -221,5 +221,11 @@ class RadarState(BaseModel):
     retry_count: int = Field(default=0, description="当前会话重试总次数")
     feedback_enabled: bool = Field(default=True, description="是否启用自适应反馈（可关闭用于调试）")
 
+    # 🔑 P0: 错误历史记录（Manus最佳实践：保留失败尝试在上下文中）
+    error_history: List[Dict[str, Any]] = Field(default_factory=list, description="工具执行错误历史，帮助LLM避免重复犯错")
+
+    # 🔑 P0: 外部记忆标记
+    candidates_externalized: bool = Field(default=False, description="候选内容是否已外部化存储")
+
     # 🔑 Analyst Agent 输出
     analysis_reports: List[Dict[str, Any]] = Field(default_factory=list, description="深度分析报告")
