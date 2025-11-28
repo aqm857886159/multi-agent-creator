@@ -25,8 +25,8 @@ ENV/
 
 # Logs
 *.log
-*.txt
 日志*.txt
+日志.txt
 
 # Cache
 .cache/
