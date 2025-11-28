@@ -31,29 +31,48 @@ class ModelGateway:
     - Capability Mapping (e.g., 'creative' -> Kimi, 'fast' -> DeepSeek)
     - OpenRouter Specific Headers (Ops Level Observability)
     - Execution Helpers (call, call_as_json, call_with_schema)
+    
+    🔑 使用延迟初始化，确保在 load_dotenv() 之后才读取环境变量
     """
     
     def __init__(self):
         self.config = _MODEL_CONFIG
-        # Prioritize LLM_* env vars, fallback to OPENAI_* for backward compatibility
-        self.api_key = os.getenv("LLM_API_KEY") or os.getenv("OPENAI_API_KEY")
-        self.base_url = os.getenv("LLM_BASE_URL") or "https://openrouter.ai/api/v1"
-        
-        if not self.api_key:
-            logging.warning("LLM_API_KEY not set. LLM calls will fail.")
-
-        # Initialize Instructor Client (Patched OpenAI)
-        self.instructor_client = instructor.from_openai(
-            OpenAI(
-                base_url=self.base_url,
-                api_key=self.api_key,
-                default_headers={
-                    "HTTP-Referer": self.config["openrouter"].get("site_url", ""),
-                    "X-Title": self.config["openrouter"].get("site_name", "Topic Radar")
-                }
-            ),
-            mode=instructor.Mode.JSON # Force JSON mode for broad compatibility
-        )
+        self._api_key = None
+        self._base_url = None
+        self._instructor_client = None
+    
+    @property
+    def api_key(self):
+        """延迟获取 API Key，确保 .env 已加载"""
+        if self._api_key is None:
+            self._api_key = os.getenv("LLM_API_KEY") or os.getenv("OPENAI_API_KEY")
+            if not self._api_key:
+                logging.warning("LLM_API_KEY not set. LLM calls will fail.")
+        return self._api_key
+    
+    @property
+    def base_url(self):
+        """延迟获取 Base URL，确保 .env 已加载"""
+        if self._base_url is None:
+            self._base_url = os.getenv("LLM_BASE_URL") or "https://openrouter.ai/api/v1"
+        return self._base_url
+    
+    @property
+    def instructor_client(self):
+        """延迟初始化 Instructor Client，确保 .env 已加载"""
+        if self._instructor_client is None:
+            self._instructor_client = instructor.from_openai(
+                OpenAI(
+                    base_url=self.base_url,
+                    api_key=self.api_key,
+                    default_headers={
+                        "HTTP-Referer": self.config["openrouter"].get("site_url", ""),
+                        "X-Title": self.config["openrouter"].get("site_name", "Topic Radar")
+                    }
+                ),
+                mode=instructor.Mode.JSON  # Force JSON mode for broad compatibility
+            )
+        return self._instructor_client
 
     def _get_model_params(self, capability: str) -> Dict[str, Any]:
         """Helper to get model config params"""
