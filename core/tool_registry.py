@@ -57,7 +57,9 @@ class ToolRegistry:
             func=func
         )
         self._tools[name] = tool_def
-        print(f"🛠️  Tool Registered: {name}")
+        # 🔑 使用分级日志，只在 VERBOSE 模式显示
+        from utils.logger import log_debug
+        log_debug(f"Tool Registered: {name}")
 
     def get_tool(self, name: str) -> Optional[ToolDefinition]:
         return self._tools.get(name)

@@ -505,6 +505,23 @@ def _infer_engine_from_check(check: Dict[str, Any]) -> str:
         return "engine2"
 
 
+def _is_english(text: str) -> bool:
+    """检测文本是否主要是英文"""
+    if not text:
+        return False
+    # 简单检测：如果超过 70% 是 ASCII 字符，认为是英文
+    ascii_count = sum(1 for c in text if ord(c) < 128)
+    return ascii_count / len(text) > 0.7
+
+def _is_chinese(text: str) -> bool:
+    """检测文本是否主要是中文"""
+    if not text:
+        return False
+    # 检测中文字符
+    chinese_count = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
+    return chinese_count / len(text) > 0.3
+
+
 def _generate_influencer_search_tasks(state: RadarState) -> List[TaskItem]:
     """
     生成"顺藤摸瓜"任务
@@ -547,9 +564,18 @@ def _generate_influencer_search_tasks(state: RadarState) -> List[TaskItem]:
             print(f"       ⚠️ 缺少name或platform，跳过")
             continue
 
-        # 生成搜索关键词
+        # 🔑 生成搜索关键词 - 根据平台使用对应语言
+        # 避免混合语言导致搜索结果不佳
         target_domain = state.target_domains[0] if state.target_domains else ""
-        keyword = f"{name} {target_domain}".strip()
+        
+        if platform == "youtube":
+            # YouTube: 纯英文搜索词
+            # 如果博主名是英文，直接用；如果是中文，需要翻译或使用英文关键词
+            keyword = f"{name} {target_domain}".strip() if _is_english(name) else f"{name}"
+        else:
+            # Bilibili: 纯中文搜索词
+            # 使用中文关键词
+            keyword = f"{name} {target_domain}".strip() if _is_chinese(target_domain) else f"{name} 最新视频"
 
         tool_name = "youtube_search" if platform == "youtube" else "bilibili_search"
 
@@ -597,9 +623,10 @@ def _llm_generate_tasks(state: RadarState) -> List[TaskItem]:
     LLM动态生成任务（兜底方案）
     当任务队列为空但目标未达成时调用
     
-    🔑 P3: 集成 Skills 框架，注入专业知识到 prompt
+    🔑 P3: 集成 Skills 框架 + PromptManager，注入专业知识到 prompt
     """
     from skills import get_skill_context
+    from core.prompt_manager import get_prompt, build_state_summary, build_error_summary
     
     # 获取当前搜索主题
     topic = state.session_focus or "AI"
@@ -608,40 +635,44 @@ def _llm_generate_tasks(state: RadarState) -> List[TaskItem]:
     context_hint = f"{topic} youtube bilibili 搜索 筛选"
     skill_context = get_skill_context(context_hint, max_skills=2)
     
+    # 🔑 使用 PromptManager 构建状态摘要和错误摘要
+    state_summary = build_state_summary(state)
+    error_summary = build_error_summary(state, max_errors=3)
+    
     # 构建 prompt
     collected = len(state.candidates)
     youtube_count = len([c for c in state.candidates if c.platform == "youtube"])
     bilibili_count = len([c for c in state.candidates if c.platform == "bilibili"])
     
-    # 获取错误上下文
-    error_context = _build_error_context(state, limit=3)
+    # 🔑 使用 PromptManager 获取基础提示词
+    base_prompt = get_prompt("task_generator", "system", topic=topic)
     
-    system_prompt = f"""你是一个内容搜索专家，负责为双平台（YouTube + Bilibili）生成搜索任务。
+    system_prompt = f"""{base_prompt}
 
+## 专业知识参考
 {skill_context}
 
-当前状态：
-- 目标: 收集 {TARGET_TOTAL_ITEMS} 条内容
-- 已收集: {collected} 条 (YouTube: {youtube_count}, Bilibili: {bilibili_count})
-- 主题: {topic}
+## 当前状态
+{state_summary}
 
-{error_context}
+## 历史错误（避免重复）
+{error_summary if error_summary else "无"}
 
-请生成 2-4 个搜索任务，要求：
-1. 平台平衡：优先补充数量较少的平台
+## 任务要求
+1. 平台平衡：优先补充数量较少的平台 (YouTube: {youtube_count}, Bilibili: {bilibili_count})
 2. 关键词多样：避免重复已搜索的词
-3. 参考 Skills 中的最佳实践
+3. 语言纯净：YouTube纯英文，Bilibili纯中文，禁止混合
 """
 
-    user_prompt = f"""基于主题「{topic}」，生成搜索任务。
+    user_prompt = f"""基于主题「{topic}」，生成 2-4 个搜索任务。
 
 已搜索的关键词（避免重复）：
 {[t.arguments.get('query', t.arguments.get('keyword', '')) for t in state.task_queue[:10]]}
 
 请返回 JSON 格式的任务列表：
 [
-  {{"platform": "youtube", "query": "搜索词", "reason": "原因"}},
-  {{"platform": "bilibili", "query": "搜索词", "reason": "原因"}}
+  {{"platform": "youtube", "query": "纯英文搜索词", "reason": "原因"}},
+  {{"platform": "bilibili", "query": "纯中文搜索词", "reason": "原因"}}
 ]
 """
 

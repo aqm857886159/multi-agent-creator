@@ -2,6 +2,7 @@ from typing import Dict, Any, List
 from pydantic import BaseModel, Field
 from core.state import RadarState
 from core.llm import get_llm_with_schema
+from core.prompt_manager import get_prompt
 
 class InfluencerInfo(BaseModel):
     """博主信息"""
@@ -186,16 +187,14 @@ else:
     """
 
     try:
+        # 🔑 使用 PromptManager 获取系统提示词
+        system_prompt = get_prompt("influencer_extractor", "system")
+        
         result: InfluencerExtractorOutput = get_llm_with_schema(
             user_prompt=user_prompt,
             response_model=InfluencerExtractorOutput,
             capability="creative",  # 使用 creative 能力处理长上下文
-            system_prompt="""你是一个专业的信息提取专家，擅长从文章中提取博主和内容创作者信息。
-
-核心原则: 宁可多提取也不要漏掉有价值的创作者！
-- 即使没有@handle或UID，只要文章提到创作者名字，就应该提取
-- 标记适当的confidence等级，让下游系统决定是否使用
-- 不要因为信息不完整就跳过提取"""
+            system_prompt=system_prompt
         )
 
         # 按平台分组统计

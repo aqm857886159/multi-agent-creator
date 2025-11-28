@@ -10,12 +10,17 @@ load_dotenv()
 # Force UTF-8 for Windows stdout to handle emojis/unicode
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding='utf-8')
-    # 解决 Windows 下的输入编码问题
-    # sys.stdin.reconfigure(encoding='utf-8') 
-    # 注意: 有时 reconfigure stdin 会导致其他副作用，如果 input() 依然报错，
-    # 建议检查 IDE (如 VSCode/Cursor) 的终端编码设置，或者直接使用非交互模式
 
 init(autoreset=True)
+
+# 🔑 设置日志级别（从环境变量或默认 NORMAL）
+from utils.logger import set_log_level, LogLevel, set_emoji
+LOG_LEVEL = os.getenv("LOG_LEVEL", "2")  # 0=SILENT, 1=MINIMAL, 2=NORMAL, 3=VERBOSE
+set_log_level(LogLevel(int(LOG_LEVEL)))
+
+# Windows 下可能需要禁用 emoji
+if os.getenv("LOG_EMOJI", "1") == "0":
+    set_emoji(False)
 
 from core.graph import app
 from core.state import RadarState
