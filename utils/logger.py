@@ -31,7 +31,34 @@ class LogLevel(IntEnum):
     VERBOSE = 3   # 详细调试信息
 
 # 从环境变量读取日志级别，默认 NORMAL
-_LOG_LEVEL = LogLevel(int(os.getenv("LOG_LEVEL", "2")))
+# 支持数字 (0-3) 或字符串 (SILENT, MINIMAL, NORMAL, VERBOSE, INFO, DEBUG)
+def _parse_log_level(value: str) -> LogLevel:
+    """解析日志级别，支持数字和字符串"""
+    value = value.strip().upper()
+    
+    # 字符串映射
+    level_map = {
+        "SILENT": LogLevel.SILENT,
+        "MINIMAL": LogLevel.MINIMAL,
+        "NORMAL": LogLevel.NORMAL,
+        "VERBOSE": LogLevel.VERBOSE,
+        # 兼容常见的日志级别名称
+        "INFO": LogLevel.NORMAL,
+        "DEBUG": LogLevel.VERBOSE,
+        "WARNING": LogLevel.MINIMAL,
+        "ERROR": LogLevel.SILENT,
+    }
+    
+    if value in level_map:
+        return level_map[value]
+    
+    # 尝试解析为数字
+    try:
+        return LogLevel(int(value))
+    except (ValueError, KeyError):
+        return LogLevel.NORMAL  # 默认
+
+_LOG_LEVEL = _parse_log_level(os.getenv("LOG_LEVEL", "2"))
 
 # 是否使用 emoji（Windows 兼容性）
 _USE_EMOJI = os.getenv("LOG_EMOJI", "1") == "1"

@@ -588,14 +588,31 @@ def _generate_influencer_search_tasks(state: RadarState) -> List[TaskItem]:
         # 避免混合语言导致搜索结果不佳
         target_domain = state.target_domains[0] if state.target_domains else ""
         
+        # 🔑 修复：根据平台选择合适的关键词语言
+        # YouTube 必须用英文，Bilibili 必须用中文
         if platform == "youtube":
             # YouTube: 纯英文搜索词
-            # 如果博主名是英文，直接用；如果是中文，需要翻译或使用英文关键词
-            keyword = f"{name} {target_domain}".strip() if _is_english(name) else f"{name}"
+            if _is_english(name):
+                # 英文博主名 + 英文关键词
+                if _is_english(target_domain):
+                    keyword = f"{name} {target_domain}".strip()
+                else:
+                    # 中文主题，使用通用英文关键词
+                    keyword = f"{name} AI video tutorial"
+            else:
+                # 中文博主名，只用名字（YouTube 上可能有英文频道名）
+                keyword = f"{name}"
         else:
             # Bilibili: 纯中文搜索词
-            # 使用中文关键词
-            keyword = f"{name} {target_domain}".strip() if _is_chinese(target_domain) else f"{name} 最新视频"
+            if _is_chinese(name) or not _is_english(name):
+                # 中文博主名 + 中文关键词
+                if _is_chinese(target_domain):
+                    keyword = f"{name} {target_domain}".strip()
+                else:
+                    keyword = f"{name} 最新视频"
+            else:
+                # 英文博主名在 B站，使用中文后缀
+                keyword = f"{name} 最新视频"
 
         tool_name = "youtube_search" if platform == "youtube" else "bilibili_search"
 

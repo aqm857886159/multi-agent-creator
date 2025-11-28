@@ -14,9 +14,9 @@ if sys.platform == "win32":
 init(autoreset=True)
 
 # 🔑 设置日志级别（从环境变量或默认 NORMAL）
-from utils.logger import set_log_level, LogLevel, set_emoji
-LOG_LEVEL = os.getenv("LOG_LEVEL", "2")  # 0=SILENT, 1=MINIMAL, 2=NORMAL, 3=VERBOSE
-set_log_level(LogLevel(int(LOG_LEVEL)))
+# 支持数字 (0-3) 或字符串 (SILENT, MINIMAL, NORMAL, VERBOSE, INFO, DEBUG)
+from utils.logger import set_log_level, LogLevel, set_emoji, get_log_level
+# 日志级别已在 logger.py 中从环境变量解析，这里不需要重复设置
 
 # Windows 下可能需要禁用 emoji
 if os.getenv("LOG_EMOJI", "1") == "0":
