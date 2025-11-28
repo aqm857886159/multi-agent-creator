@@ -596,9 +596,101 @@ def _llm_generate_tasks(state: RadarState) -> List[TaskItem]:
     """
     LLM动态生成任务（兜底方案）
     当任务队列为空但目标未达成时调用
+    
+    🔑 P3: 集成 Skills 框架，注入专业知识到 prompt
     """
-    # 暂时返回空列表，可以后续扩展
-    return []
+    from skills import get_skill_context
+    
+    # 获取当前搜索主题
+    topic = state.session_focus or "AI"
+    
+    # 🔑 根据当前状态匹配相关 Skills
+    context_hint = f"{topic} youtube bilibili 搜索 筛选"
+    skill_context = get_skill_context(context_hint, max_skills=2)
+    
+    # 构建 prompt
+    collected = len(state.candidates)
+    youtube_count = len([c for c in state.candidates if c.platform == "youtube"])
+    bilibili_count = len([c for c in state.candidates if c.platform == "bilibili"])
+    
+    # 获取错误上下文
+    error_context = _build_error_context(state, limit=3)
+    
+    system_prompt = f"""你是一个内容搜索专家，负责为双平台（YouTube + Bilibili）生成搜索任务。
+
+{skill_context}
+
+当前状态：
+- 目标: 收集 {TARGET_TOTAL_ITEMS} 条内容
+- 已收集: {collected} 条 (YouTube: {youtube_count}, Bilibili: {bilibili_count})
+- 主题: {topic}
+
+{error_context}
+
+请生成 2-4 个搜索任务，要求：
+1. 平台平衡：优先补充数量较少的平台
+2. 关键词多样：避免重复已搜索的词
+3. 参考 Skills 中的最佳实践
+"""
+
+    user_prompt = f"""基于主题「{topic}」，生成搜索任务。
+
+已搜索的关键词（避免重复）：
+{[t.arguments.get('query', t.arguments.get('keyword', '')) for t in state.task_queue[:10]]}
+
+请返回 JSON 格式的任务列表：
+[
+  {{"platform": "youtube", "query": "搜索词", "reason": "原因"}},
+  {{"platform": "bilibili", "query": "搜索词", "reason": "原因"}}
+]
+"""
+
+    try:
+        # 调用 LLM 生成任务
+        from core.llm import get_llm_with_schema
+        from pydantic import BaseModel, Field
+        from typing import List as ListType
+        
+        class TaskSuggestion(BaseModel):
+            platform: str = Field(..., description="平台: youtube 或 bilibili")
+            query: str = Field(..., description="搜索关键词")
+            reason: str = Field(..., description="选择原因")
+        
+        class TaskSuggestions(BaseModel):
+            tasks: ListType[TaskSuggestion] = Field(..., description="建议的任务列表")
+        
+        llm = get_llm_with_schema(TaskSuggestions)
+        result = llm.invoke([
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ])
+        
+        # 转换为 TaskItem
+        new_tasks = []
+        for i, suggestion in enumerate(result.tasks):
+            tool_name = f"{suggestion.platform}_search"
+            task = TaskItem(
+                task_id=f"llm_gen_{len(state.task_queue)}_{i}",
+                tool_name=tool_name,
+                engine="engine2",  # LLM 生成的任务归入引擎2
+                platform=suggestion.platform,
+                priority=60,  # 中等优先级
+                arguments={
+                    "query" if suggestion.platform == "youtube" else "keyword": suggestion.query,
+                    "limit": 10,
+                    "days": 30
+                },
+                status="pending",
+                reasoning=f"🤖 [LLM生成] {suggestion.reason}"
+            )
+            new_tasks.append(task)
+        
+        print(f"   🤖 LLM 生成 {len(new_tasks)} 个任务")
+        return new_tasks
+        
+    except Exception as e:
+        print(f"   ⚠️ LLM 任务生成失败: {e}")
+        return []
 
 
 # ============ P1: 复述机制 ============

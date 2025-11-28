@@ -7,6 +7,12 @@ from core.tool_registry import registry
 from core.tool_loader import load_tools_from_config
 from core.quality_gate import AdaptiveQualityGate, FeedbackLoopManager, FeedbackLoopGuard
 from core.memory import compress_candidates_if_needed
+from core.state_reducers import (
+    append_reducer,
+    merge_dict_reducer,
+    dedupe_append_reducer,
+    capped_append_reducer
+)
 
 # 🔑 P0: 候选内容压缩阈值
 CANDIDATES_COMPRESS_THRESHOLD = 100
@@ -583,3 +589,55 @@ def get_error_summary_for_planner(state: RadarState, limit: int = 3) -> str:
     
     summary_lines.append("请避免重复上述失败的操作。")
     return "\n".join(summary_lines)
+
+
+# ============ P3: Reducer 辅助函数 ============
+
+def _dedupe_candidates(existing: List[ContentItem], new_items: List[ContentItem]) -> List[ContentItem]:
+    """
+    🔑 P3: 使用 Reducer 模式去重候选内容
+    
+    按 URL 去重，避免重复添加相同内容
+    """
+    existing_urls = set(c.url for c in existing)
+    unique_new = [item for item in new_items if item.url not in existing_urls]
+    return unique_new
+
+
+def _safe_extend_candidates(state: RadarState, new_items: List[ContentItem]) -> int:
+    """
+    🔑 P3: 安全扩展候选内容列表
+    
+    使用 Reducer 模式：
+    1. 自动去重
+    2. 返回实际添加数量
+    """
+    unique_items = _dedupe_candidates(state.candidates, new_items)
+    state.candidates.extend(unique_items)
+    return len(unique_items)
+
+
+def _safe_append_error(state: RadarState, error_record: Dict[str, Any], max_errors: int = 50):
+    """
+    🔑 P3: 安全追加错误记录
+    
+    使用 capped_append_reducer 模式，限制最大数量
+    """
+    state.error_history = capped_append_reducer(
+        state.error_history, 
+        [error_record], 
+        max_size=max_errors
+    )
+
+
+def _safe_merge_progress(state: RadarState, engine: str, count: int):
+    """
+    🔑 P3: 安全合并引擎进度
+    
+    使用 merge_dict_reducer 模式
+    """
+    current = state.engine_progress.get(engine, 0)
+    state.engine_progress = merge_dict_reducer(
+        state.engine_progress,
+        {engine: current + count}
+    )
