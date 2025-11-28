@@ -55,6 +55,11 @@ class PromptManager:
         self._loaded = True
         return self._prompts
     
+    def reload(self):
+        """强制重新加载配置（用于热更新）"""
+        self._loaded = False
+        return self.load()
+    
     def get_prompt(
         self, 
         agent_name: str, 
@@ -66,7 +71,7 @@ class PromptManager:
         
         Args:
             agent_name: 智能体名称 (planner, keyword_designer, etc.)
-            prompt_type: 提示词类型 (system, user, examples)
+            prompt_type: 提示词类型 (system, user, goal_recap, state_summary)
             **kwargs: 用于格式化的变量
         """
         self.load()
@@ -88,11 +93,49 @@ class PromptManager:
         kwargs.setdefault("role", agent_config.get("role", "AI助手"))
         kwargs.setdefault("goal", agent_config.get("goal", ""))
         
+        # 注入全局配置
+        global_config = self._prompts.get("global", {})
+        kwargs.setdefault("target_items", global_config.get("target_items", 50))
+        
         try:
             return template.format(**kwargs)
         except KeyError as e:
             # 如果格式化失败，返回原始模板
             return template
+    
+    def get_template(self, section: str, template_name: str) -> str:
+        """
+        获取特定部分的模板（如 compression, error_handling）
+        
+        Args:
+            section: 配置部分名称
+            template_name: 模板名称
+        """
+        self.load()
+        section_config = self._prompts.get(section, {})
+        return section_config.get(template_name, "")
+    
+    def get_tool_phases(self) -> Dict[str, Any]:
+        """获取工具阶段映射配置"""
+        self.load()
+        return self._prompts.get("tool_phases", {})
+    
+    def get_available_tools(self, phase: str) -> List[str]:
+        """获取指定阶段可用的工具列表"""
+        tool_phases = self.get_tool_phases()
+        phase_config = tool_phases.get(phase, {})
+        return phase_config.get("available", [])
+    
+    def get_error_handling_config(self) -> Dict[str, Any]:
+        """获取错误处理配置"""
+        self.load()
+        return self._prompts.get("error_handling", {})
+    
+    def get_compression_template(self, template_name: str) -> str:
+        """获取压缩模板"""
+        self.load()
+        compression_config = self._prompts.get("compression", {})
+        return compression_config.get(template_name, "")
     
     def build_context(
         self,
@@ -161,9 +204,19 @@ class PromptManager:
         self.load()
         return self._prompts.get(agent_name, {}).get("goal", "")
     
+    def get_global_config(self, key: str, default: Any = None) -> Any:
+        """获取全局配置"""
+        self.load()
+        return self._prompts.get("global", {}).get(key, default)
+    
     def _get_default_prompts(self) -> Dict[str, Any]:
         """默认提示词配置"""
         return {
+            "global": {
+                "target_items": 50,
+                "max_steps": 50,
+                "platforms": ["youtube", "bilibili"]
+            },
             "planner": {
                 "role": "内容采集规划师",
                 "goal": "智能调度双平台搜索任务，确保数据质量和平台平衡",
@@ -260,6 +313,13 @@ class PromptManager:
 - skip: 放弃此次搜索
 
 请给出具体的问题诊断和调整建议。"""
+            },
+            "tool_phases": {
+                "init": {"available": []},
+                "discovery": {"available": ["web_search", "web_scrape"]},
+                "collection": {"available": ["youtube_search", "bilibili_search", "youtube_monitor", "bilibili_monitor"]},
+                "filtering": {"available": []},
+                "analysis": {"available": ["web_search", "arxiv_search"]}
             }
         }
 
@@ -291,11 +351,25 @@ def get_goal(agent_name: str) -> str:
     """便捷函数：获取目标"""
     return get_prompt_manager().get_goal(agent_name)
 
+def get_available_tools(phase: str) -> List[str]:
+    """便捷函数：获取阶段可用工具"""
+    return get_prompt_manager().get_available_tools(phase)
+
+def get_compression_template(template_name: str) -> str:
+    """便捷函数：获取压缩模板"""
+    return get_prompt_manager().get_compression_template(template_name)
+
 
 # ============ 上下文构建辅助函数 ============
 
-def build_state_summary(state) -> str:
-    """从 RadarState 构建状态摘要"""
+def build_state_summary(state, template: str = None) -> str:
+    """
+    从 RadarState 构建状态摘要
+    
+    Args:
+        state: RadarState 实例
+        template: 可选的自定义模板
+    """
     from core.state import RadarState
     if not isinstance(state, RadarState):
         return ""
@@ -303,20 +377,44 @@ def build_state_summary(state) -> str:
     youtube_count = len([c for c in state.candidates if c.platform == "youtube"])
     bilibili_count = len([c for c in state.candidates if c.platform == "bilibili"])
     total = len(state.candidates)
+    pending_tasks = len([t for t in state.task_queue if t.status == "pending"])
     
+    if template:
+        try:
+            return template.format(
+                total=total,
+                youtube_count=youtube_count,
+                bilibili_count=bilibili_count,
+                pending_tasks=pending_tasks,
+                current_phase=state.current_phase,
+                target_items=get_prompt_manager().get_global_config("target_items", 50),
+                collected=total,
+                progress_pct=total * 100 // 50 if total > 0 else 0
+            )
+        except KeyError:
+            pass
+    
+    # 默认格式
     lines = [
         f"- 已采集: {total} 条内容",
         f"  - YouTube: {youtube_count} 条",
         f"  - Bilibili: {bilibili_count} 条",
         f"- 发现博主: {len(state.discovered_influencers)} 个",
         f"- 待处理线索: {len(state.leads)} 条",
-        f"- 任务队列: {len([t for t in state.task_queue if t.status == 'pending'])} 个待执行",
+        f"- 任务队列: {pending_tasks} 个待执行",
     ]
     
     return "\n".join(lines)
 
-def build_error_summary(state, max_errors: int = 5) -> str:
-    """从 RadarState 构建错误摘要"""
+def build_error_summary(state, max_errors: int = 5, template: str = None) -> str:
+    """
+    从 RadarState 构建错误摘要
+    
+    Args:
+        state: RadarState 实例
+        max_errors: 最大显示错误数
+        template: 可选的自定义模板
+    """
     from core.state import RadarState
     if not isinstance(state, RadarState):
         return ""
@@ -325,12 +423,27 @@ def build_error_summary(state, max_errors: int = 5) -> str:
         return ""
     
     recent_errors = state.error_history[-max_errors:]
-    lines = []
     
+    # 获取错误处理配置
+    error_config = get_prompt_manager().get_error_handling_config()
+    item_template = error_config.get("error_item_template", "- {tool_name}: [{error_type}] {error_msg}")
+    
+    lines = []
     for err in recent_errors:
-        tool = err.get("tool", "unknown")
-        error_msg = err.get("error", "")[:100]
-        lines.append(f"- {tool}: {error_msg}")
+        tool = err.get("tool_name", err.get("tool", "unknown"))
+        error_type = err.get("error_type", "Error")
+        error_msg = str(err.get("error", ""))[:100]
+        
+        try:
+            line = item_template.format(
+                tool_name=tool,
+                error_type=error_type,
+                error_msg=error_msg
+            )
+        except KeyError:
+            line = f"- {tool}: [{error_type}] {error_msg}"
+        
+        lines.append(line)
     
     return "\n".join(lines)
 
@@ -346,7 +459,7 @@ def build_skills_summary(state) -> str:
         # 根据当前任务类型获取相关 Skills
         keywords = []
         if state.session_focus:
-            keywords.append(state.session_focus)
+            keywords.append(str(state.session_focus))
         
         # 添加平台关键词
         pending_tasks = [t for t in state.task_queue if t.status == "pending"]
@@ -355,8 +468,67 @@ def build_skills_summary(state) -> str:
                 keywords.append(task.platform)
         
         if keywords:
-            return get_skill_context(keywords)
+            return get_skill_context(" ".join(keywords))
         return ""
     except ImportError:
         return ""
 
+
+# ============ 目标提醒构建器 ============
+
+def build_goal_recap(state, target_items: int = 50) -> str:
+    """
+    构建目标提醒（复述机制）
+    
+    Args:
+        state: RadarState 实例
+        target_items: 目标数量
+    """
+    from core.state import RadarState
+    if not isinstance(state, RadarState):
+        return ""
+    
+    collected = len(state.candidates)
+    youtube_count = len([c for c in state.candidates if c.platform == "youtube"])
+    bilibili_count = len([c for c in state.candidates if c.platform == "bilibili"])
+    progress_pct = collected * 100 // target_items if target_items > 0 else 0
+    
+    # 尝试从配置获取模板
+    template = get_prompt_manager().get_prompt("planner", "goal_recap")
+    
+    if template:
+        try:
+            # 构建错误摘要
+            error_summary = ""
+            if state.error_history:
+                recent_errors = state.error_history[-2:]
+                error_lines = [f"   ⚠️ 最近错误: {len(state.error_history)} 条"]
+                for err in recent_errors:
+                    tool = err.get("tool_name", "unknown")
+                    msg = str(err.get("error", ""))[:50]
+                    error_lines.append(f"      - {tool}: {msg}")
+                error_summary = "\n".join(error_lines)
+            
+            return template.format(
+                target_items=target_items,
+                collected=collected,
+                progress_pct=progress_pct,
+                youtube_count=youtube_count,
+                bilibili_count=bilibili_count,
+                error_summary=error_summary
+            )
+        except KeyError:
+            pass
+    
+    # 默认格式
+    lines = [
+        f"📌 【目标提醒】",
+        f"   🎯 目标: 收集 {target_items} 条内容",
+        f"   📊 进度: {collected}/{target_items} ({progress_pct}%)",
+        f"   ⚖️ 平台: YouTube={youtube_count} Bilibili={bilibili_count}",
+    ]
+    
+    if state.error_history:
+        lines.append(f"   ⚠️ 最近错误: {len(state.error_history)} 条")
+    
+    return "\n".join(lines)

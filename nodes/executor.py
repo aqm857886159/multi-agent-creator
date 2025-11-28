@@ -13,6 +13,13 @@ from core.state_reducers import (
     dedupe_append_reducer,
     capped_append_reducer
 )
+# 🔑 P4: 反馈分析器
+from core.feedback_analyzer import (
+    analyze_result,
+    get_retry_suggestion
+)
+# 🔑 P1: 上下文压缩
+from core.context_compressor import compress_candidates
 
 # 🔑 P0: 候选内容压缩阈值
 CANDIDATES_COMPRESS_THRESHOLD = 100
@@ -191,6 +198,14 @@ def run_executor(state: RadarState) -> Dict[str, Any]:
         print(f"❌ Execution Error: {e}")
         last_entry["tool_result"] = {"status": "error", "error": str(e)}
         
+        # 🔑 P4: 使用 FeedbackAnalyzer 分析错误
+        retry_suggestion = get_retry_suggestion(
+            tool_name=tool_name,
+            error=str(e),
+            original_params=tool_args,
+            state=state
+        )
+        
         # 🔑 P0: 记录错误到 error_history（Manus最佳实践：保留失败尝试）
         error_record = {
             "tool_name": tool_name,
@@ -198,9 +213,24 @@ def run_executor(state: RadarState) -> Dict[str, Any]:
             "error": str(e),
             "error_type": type(e).__name__,
             "timestamp": datetime.now().isoformat(),
-            "reasoning": tool_call.get("reasoning", "")[:200]  # 保留部分reasoning便于分析
+            "reasoning": tool_call.get("reasoning", "")[:200],  # 保留部分reasoning便于分析
+            # 🔑 P4: 添加重试建议
+            "retry_suggestion": retry_suggestion
         }
         state.error_history.append(error_record)
+        
+        # 🔑 P4: 打印重试建议
+        if retry_suggestion.get("should_retry"):
+            print(f"   💡 建议: {retry_suggestion.get('reason', '')}")
+            if retry_suggestion.get("adjusted_params"):
+                print(f"   🔧 调整参数: {retry_suggestion.get('adjusted_params')}")
+            if retry_suggestion.get("wait_seconds", 0) > 0:
+                print(f"   ⏱️ 建议等待: {retry_suggestion.get('wait_seconds')}秒")
+        else:
+            print(f"   ⚠️ 不建议重试: {retry_suggestion.get('reason', '')}")
+            if retry_suggestion.get("alternative_tool"):
+                print(f"   🔄 可尝试: {retry_suggestion.get('alternative_tool')}")
+        
         print(f"   📝 错误已记录到 error_history (共 {len(state.error_history)} 条)")
         
         return {

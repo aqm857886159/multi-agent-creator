@@ -1,11 +1,13 @@
 """
-规划大脑 v2.1 - 任务调度器
+规划大脑 v2.2 - 任务调度器
 核心改进:
 1. 任务队列化管理
 2. 智能任务选择（平台平衡 + 引擎平衡）
 3. 结构化日志输出
 4. 🔑 P1: 集成 PlatformBalancer 强制平衡
 5. 🔑 P1: 复述机制（目标提醒）
+6. 🔑 P2: 动态工具屏蔽 (ToolMasker)
+7. 🔑 P1: 上下文压缩 (ContextCompressor)
 """
 
 from typing import Dict, Any, List, Optional, Tuple
@@ -16,6 +18,24 @@ from core.platform_balancer import (
     get_platform_balancer, 
     get_balance_summary,
     BalanceMode
+)
+# 🔑 P2: 动态工具屏蔽
+from core.tool_masker import (
+    get_masked_tools,
+    get_tool_descriptions,
+    get_tool_hints
+)
+# 🔑 P1: 上下文压缩
+from core.context_compressor import (
+    compress_state,
+    should_compress
+)
+# 🔑 P0: Prompt 管理
+from core.prompt_manager import (
+    get_prompt,
+    build_goal_recap,
+    build_state_summary,
+    build_error_summary
 )
 from datetime import datetime
 import sys
@@ -734,30 +754,26 @@ def _print_goal_recap(state: RadarState, collected: int):
     
     Manus 最佳实践：通过不断复述目标，将注意力引导到任务焦点
     避免 LLM 在长任务链中"迷失方向"
+    
+    🔑 P0: 使用 PromptManager 的 build_goal_recap
     """
     # 只在非初始化阶段且有一定进度时打印
     if state.current_phase == "init":
         return
     
-    # 每 5 次迭代打印一次完整提醒，其他时候打印简化版
+    # 每 5 次迭代打印一次完整提醒
     step_count = len(state.plan_scratchpad)
     
     if step_count > 0 and step_count % 5 == 0:
-        # 完整提醒
-        youtube_count = len([c for c in state.candidates if c.platform == "youtube"])
-        bilibili_count = len([c for c in state.candidates if c.platform == "bilibili"])
+        # 🔑 使用 PromptManager 构建目标提醒
+        recap = build_goal_recap(state, TARGET_TOTAL_ITEMS)
+        print(f"\n{recap}")
         
-        print(f"\n📌 【目标提醒】")
-        print(f"   🎯 目标: 收集 {TARGET_TOTAL_ITEMS} 条内容")
-        print(f"   📊 进度: {collected}/{TARGET_TOTAL_ITEMS} ({collected*100//TARGET_TOTAL_ITEMS}%)")
-        print(f"   ⚖️ 平台: YouTube={youtube_count} Bilibili={bilibili_count}")
-        
-        # 显示错误历史提醒（如果有）
-        if state.error_history:
-            recent_errors = state.error_history[-2:]
-            print(f"   ⚠️ 最近错误: {len(state.error_history)} 条")
-            for err in recent_errors:
-                print(f"      - {err.get('tool_name', 'unknown')}: {err.get('error', '')[:50]}")
+        # 🔑 P2: 显示当前可用工具提示
+        tool_hints = get_tool_hints(state)
+        if tool_hints:
+            print(f"\n💡 工具提示:")
+            print(f"   {tool_hints}")
         
         print()
 
@@ -788,18 +804,26 @@ def get_planner_context_summary(state: RadarState) -> str:
     🔑 P1: 生成规划器上下文摘要
     
     用于在 LLM 调用时附加到 prompt 末尾，实现复述机制
+    
+    🔑 P1: 使用 ContextCompressor 进行智能压缩
     """
-    collected = len(state.candidates)
-    youtube_count = len([c for c in state.candidates if c.platform == "youtube"])
-    bilibili_count = len([c for c in state.candidates if c.platform == "bilibili"])
-    
-    # 平衡状态
-    balance_summary = get_balance_summary(state.candidates, state.task_queue)
-    
-    # 任务队列状态
-    pending_count = len([t for t in state.task_queue if t.status == "pending"])
-    
-    summary = f"""
+    # 🔑 P1: 判断是否需要压缩
+    if should_compress(state):
+        # 使用压缩器生成摘要
+        summary = compress_state(state)
+    else:
+        # 简单摘要
+        collected = len(state.candidates)
+        youtube_count = len([c for c in state.candidates if c.platform == "youtube"])
+        bilibili_count = len([c for c in state.candidates if c.platform == "bilibili"])
+        
+        # 平衡状态
+        balance_summary = get_balance_summary(state.candidates, state.task_queue)
+        
+        # 任务队列状态
+        pending_count = len([t for t in state.task_queue if t.status == "pending"])
+        
+        summary = f"""
 【当前状态摘要】
 - 目标: 收集 {TARGET_TOTAL_ITEMS} 条内容
 - 进度: {collected}/{TARGET_TOTAL_ITEMS} ({collected*100//TARGET_TOTAL_ITEMS if TARGET_TOTAL_ITEMS > 0 else 0}%)
@@ -812,5 +836,10 @@ def get_planner_context_summary(state: RadarState) -> str:
     error_context = _build_error_context(state)
     if error_context:
         summary += f"\n{error_context}"
+    
+    # 🔑 P2: 添加可用工具信息
+    available_tools = get_masked_tools(state)
+    if available_tools:
+        summary += f"\n【可用工具】{', '.join(available_tools)}"
     
     return summary
