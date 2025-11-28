@@ -659,11 +659,13 @@ def _llm_generate_tasks(state: RadarState) -> List[TaskItem]:
         class TaskSuggestions(BaseModel):
             tasks: ListType[TaskSuggestion] = Field(..., description="建议的任务列表")
         
-        llm = get_llm_with_schema(TaskSuggestions)
-        result = llm.invoke([
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ])
+        # 🔑 修复: get_llm_with_schema 直接返回结果，不是返回 LLM 对象
+        result = get_llm_with_schema(
+            user_prompt=user_prompt,
+            response_model=TaskSuggestions,
+            system_prompt=system_prompt,
+            capability="fast"
+        )
         
         # 转换为 TaskItem
         new_tasks = []
