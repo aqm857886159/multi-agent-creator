@@ -1,0 +1,30 @@
+target_domains:
+  - "AI News"
+  - "Python Tutorials"
+  - "Tech Reviews"
+
+whitelist_kols:
+  youtube: []
+  bilibili: []
+
+thresholds:
+  low_fan_limit: 50000
+  min_interaction: 5000
+  viral_coefficient: 0.1
+  time_window_days: 7
+
+execution:
+  max_duration_minutes: 5
+  monitor_interval_hours: 6
+
+# 🎯 人工交互选项 (Human-in-the-Loop Options)
+interaction:
+  # 是否启用选题人工审核 (true=启用交互, false=自动选择全部)
+  enable_topic_selection: true
+
+  # 快速模式: 自动选择 Top N 个选题 (仅当 enable_topic_selection=false 时生效)
+  auto_select_top_n: 3
+
+  # 是否允许添加自定义选题
+  allow_custom_topics: true
+

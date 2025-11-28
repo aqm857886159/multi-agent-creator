@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(python:*)",
+      "Bash(python3:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebSearch",
+      "WebFetch(domain:nemo2011.github.io)",
+      "WebFetch(domain:moonshotai.github.io)",
+      "WebFetch(domain:openrouter.ai)",
+      "WebFetch(domain:python.useinstructor.com)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

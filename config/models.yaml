@@ -1,0 +1,50 @@
+# Model Configuration Strategy: 2025 Q4 Hybrid Stack
+# Date: 2025-11-24
+
+models:
+  # --- Capability 1: Strategic Reasoning (The "Brain") ---
+  # Model: Kimi K2 0905 (Moonshot AI) - Standard version
+  # Role: Discovery Planning, Strategy
+  # Note: Switched from k2-thinking to k2-0905 for better structured output compatibility
+  reasoning:
+    model_id: "moonshotai/kimi-k2-0905"
+    temperature: 0.6
+    max_tokens: 8000
+    timeout: 180
+
+  # --- Capability 2: Contextual Synthesis (The "Editor") ---
+  # Model: Kimi K2 0905 (Moonshot AI) - Standard version without thinking mode
+  # Role: Reading massive collected data, Summarizing trends, Writing Briefs
+  # 256k Context Window allows reading EVERYTHING.
+  # Why K2-0905: Better JSON structured output, no reasoning field complications
+  creative:
+    model_id: "moonshotai/kimi-k2-0905"
+    temperature: 0.5
+    max_tokens: 16000 # Increased token limit for long reports
+    timeout: 180
+    # fallback: "deepseek/deepseek-chat"
+
+  # --- Capability 3: High-Speed Extraction (The "Hands") ---
+  # Model: DeepSeek V3
+  # Role: Data Cleaning, JSON Parsing
+  fast:
+    model_id: "deepseek/deepseek-chat"
+    temperature: 0.0
+    max_tokens: 2000
+    timeout: 30
+    fallback: "google/gemini-flash-1.5"
+
+  # --- Capability 4: Quality Gate (Adaptive Feedback) ---
+  # Model: Grok 4.1 Fast (X.AI) - FREE
+  # Role: Quality checking, Problem diagnosis, Adaptive feedback
+  # Why Grok: Fast, free, good at reasoning about quality issues
+  base:
+    model_id: "x-ai/grok-4.1-fast:free"
+    temperature: 0.3
+    max_tokens: 2000
+    timeout: 30
+
+# OpenRouter Specific Settings
+openrouter:
+  site_url: "https://github.com/your-repo/topic-radar" 
+  site_name: "Topic Radar Agent (Hybrid Stack)"

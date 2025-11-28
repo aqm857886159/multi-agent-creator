@@ -1,0 +1,55 @@
+# config/tools.yaml
+# Tool Registry Definition
+
+tools:
+  # --- Search Gateway ---
+  web_search:
+    description: "通用网页搜索 (Tavily/Firecrawl/DDG)。适用于广泛的信息收集和话题探索。"
+    module: "tools.adapters.search_adapter"
+    class: "SearchAdapter"
+    method: "search_tool"
+    input_model: "tools.adapters.search_adapter.SearchInput"
+    capabilities: ["search", "web"]
+
+  web_scrape:
+    description: "网页抓取工具。输入 URL 列表，提取详细内容 (Markdown)。适用于深入阅读文章。"
+    module: "tools.adapters.search_adapter"
+    class: "SearchAdapter"
+    method: "scrape_tool"
+    input_model: "tools.adapters.search_adapter.ScrapeInput"
+    capabilities: ["scrape", "web"]
+
+  # --- YouTube ---
+  youtube_search:
+    description: "YouTube 视频搜索 (yt-dlp)。输入关键词，返回视频元数据 (标题, 播放量, URL)。"
+    module: "tools.adapters.youtube_adapter"
+    class: "YoutubeAdapter"
+    method: "search_videos"
+    input_model: "tools.adapters.youtube_adapter.YoutubeSearchInput"
+    capabilities: ["search", "video", "youtube"]
+
+  youtube_monitor:
+    description: "YouTube 频道监控。输入频道 URL，获取最近发布的视频。"
+    module: "tools.adapters.youtube_adapter"
+    class: "YoutubeAdapter"
+    method: "get_channel_videos"
+    input_model: "tools.adapters.youtube_adapter.YoutubeChannelInput"
+    capabilities: ["monitor", "video", "youtube"]
+
+  # --- Bilibili (New) ---
+  bilibili_search:
+    description: "B站视频搜索 (bilibili-api)。输入关键词，返回相关视频列表。"
+    module: "tools.adapters.bilibili_adapter"
+    class: "BilibiliAdapter"
+    method: "search_videos"
+    input_model: "tools.adapters.bilibili_adapter.BilibiliSearchInput"
+    capabilities: ["search", "video", "bilibili"]
+
+  bilibili_monitor:
+    description: "B站UP主监控 (bilibili-api)。输入用户ID (mid)，返回最新投稿。"
+    module: "tools.adapters.bilibili_adapter"
+    class: "BilibiliAdapter"
+    method: "monitor_user"
+    input_model: "tools.adapters.bilibili_adapter.BilibiliMonitorInput"
+    capabilities: ["monitor", "video", "bilibili"]
+

@@ -1,0 +1,319 @@
+PS C:\Users\23732\Desktop\multi-agent-create> python main.py
+🛠️  Tool Registered: web_search
+🛠️  Tool Registered: web_scrape
+🛠️  Tool Registered: youtube_search
+🛠️  Tool Registered: youtube_monitor
+🛠️  Tool Registered: bilibili_search
+🛠️  Tool Registered: bilibili_monitor
+
+🤖 选题雷达已就绪 (Topic Radar Ready)
+----------------------------------------
+当前配置领域: ['AI News', 'Python Tutorials', 'Tech Reviews']
+
+按 Enter 修改今日目标，或等待 3秒 自动执行...
+是否需要调整今日目标? (y/N): y
+
+[1/2] 请输入今日关注的领域/关键词 (逗号分隔):
+默认 [AI News,Python Tutorials,Tech Reviews]: AI公司Manus为什么成功
+
+✅ 配置已更新，即将启动...
+
+本轮优先关注哪些主题? (逗号分隔, 回车跳过): AI公司Manus为什么成功
+优先采集的平台? (仅支持 youtube,bilibili，逗号分隔): 
+是否有特别想跟的作者/频道? (逗号分隔): 
+本轮想重点观察哪些指标? (如 播放量,互动率,粉丝增长): 
+还有其他特别的关注点吗? (回车跳过): 
+
+为主题设置采集目标 (格式 主题:数量, 例如 AI News:8,Python Tutorials:5):
+
+--- 正在初始化智能体网络 ---
+
+[本轮关注重点]
+- 主题: ['AI公司Manus为什么成功']
+- 平台: ['youtube', 'bilibili']
+- 主题目标: {'AI公司Manus为什么成功': 6}
+
+--- 节点: 搜索词设计师 v2.0 (Node: Keyword Designer) ---
+
+✅ 搜索词设计: 1 个主题
+   [1] AI公司Manus为什么成功
+
+============================================================
+📍 INIT
+
+────────────────────────────────────────────────────────────
+📊 双引擎进度仪表盘
+────────────────────────────────────────────────────────────
+├─ 🔴 引擎1 (头部博主监控):
+│  ├─ 发现博主: 0 个
+│  │  ├─ YouTube: 0 个
+│  │  └─ Bilibili: 0 个
+│  └─ 收集内容: 0 条
+│
+├─ 🔵 引擎2 (关键词搜索):
+│  └─ 收集内容: 0 条
+│
+├─ 📦 平台分布:
+│  ├─ YouTube: 0 条
+│  └─ Bilibili: 0 条
+│
+└─ 🎯 总进度: 0/50 条 (0%)
+────────────────────────────────────────────────────────────
+
+
+🔧 初始化任务队列...
+   📋 任务: 4 个 (🔴2 🔵2 | YT:2 BL:2)
+✅ 初始化完成
+
+🔴 web_search | best Manus AI company channels 2025
+🛠️  Tool Registered: web_search
+🛠️  Tool Registered: web_scrape
+🛠️  Tool Registered: youtube_search
+🛠️  Tool Registered: youtube_monitor
+🛠️  Tool Registered: bilibili_search
+🛠️  Tool Registered: bilibili_monitor
+🔨 执行: web_search...
+✅ 结果: Found 20 results for 'best Manus AI company channels 2025'
+   ⚠️ 质量检查: adjust_params - 预期明确为发现推荐优质博主的文章，但实际结果完全偏离主题（通用AI助手而非Manus AI特定渠道/博主） ，数量和质量均不足以推进discovery阶段。非临时问题（如网络），而是查询不精准导致，故调
+     • 相关性低：结果标题和内容讨论通用AI助手（如'5 Powerful AI Assistants in 2025'），未提及'Manus AI'、公司渠道或博主推荐，与预期主题'best Manus AI company channels 2025'不符
+     • 数量严重不足：limit=20但仅返回1个结果，且当前candidates_count=0
+🔴 web_search | B站顶级Manus AI公司UP主推荐 2025年
+🔄 检测到 Web 搜索结果，准备提取博主...
+
+--- 节点: 博主提取器 (Node: Influencer Extractor) ---
+✅ 博主提取: 4 个 (YT:4 BL:0)
+
+📋 提取到的博主列表:
+   [1] Carson Reed | youtube | high | carsonreed
+   [2] AI Agents Podcast | youtube | medium | @ai-agents-podcast
+   [3] Lindy Drope | youtube | medium | Lindy Drope
+   [4] Fei Fei Li | youtube | low | Fei Fei Li
+🔵 youtube_search | Manus AI success explained 2025
+🛠️  Tool Registered: web_search
+🛠️  Tool Registered: web_scrape
+🛠️  Tool Registered: youtube_search
+🛠️  Tool Registered: youtube_monitor
+🛠️  Tool Registered: bilibili_search
+🛠️  Tool Registered: bilibili_monitor
+🔨 执行: youtube_search...
+🔍 [YouTube] 三阶段搜索: Manus AI success explained 2025
+📄 [阶段1] 快速扫描 50 条（详细处理 15 条）...
+✅ [阶段1] 扫描到 50 条基础数据
+🎯 [阶段2] 计算爆款分...
+   Top 3 爆款分: 2.29, 1.50, 0.55
+✅ [阶段2] 排序完成，top 15 爆款识别
+📊 [阶段3] 提取 top 15 详细信息...
+   提取详情 1/15: BEST AI TOOLS TO USE IN 2025!🔥...
+   提取详情 2/15: 2025 Humanoid Robot Gets Final Approval ...
+   提取详情 3/15: This AI Is 100% Open Source! #497...
+   提取详情 4/15: USA 2025 Humanoid Robots  Research and D...
+   提取详情 5/15: These 5 AI Businesses Will Make You $1M ...
+   提取详情 6/15: 15 AI Tools That Will Make You $1M (With...
+   提取详情 7/15: New MIT study says most AI projects are ...
+   提取详情 8/15: AI Agents For Small Business - Mark Zuck...
+   提取详情 9/15: How to make money with AI...
+   提取详情 10/15: 99% Of People STILL Don't Know The Basic...
+   提取详情 11/15: 7 MIND BLOWING Use Cases For Manus AI (H...
+   提取详情 12/15: Making $1000/Day With AI?...
+   提取详情 13/15: 🤖 Agentic AI Explained | NVIDIA GTC 2025...
+   提取详情 14/15: Don't Sell N8N Workflows, Sell AI Infras...
+   提取详情 15/15: Get Rich with these 5 AI business ideas...
+✅ [YouTube] 完成！返回 15 条爆款内容
+✅ 结果: Found 15 videos for 'Manus AI success explained 2025'
+   ⚠️ 质量检查: adjust_params - 预期是获取高质量、主题相关的YouTube视频，但实际结果仅1个通用AI工具视频，相关性极低（无Manus AI提  及），数量远低于limit=15，违反相关性、数量原则。尽管视图高，但价值低。非工具故
+     • 相关性低：返回的视频标题'BEST AI TOOLS TO USE IN 2025!'是通用AI工具推荐，未提及'Manus AI'，与预期主题'Manus AI success explained 2025'不匹配
+     • 数量严重不足：参数limit=15，但实际仅返回1个视频（结果被截断，但显式只列1项）
+   🔵 +15 条
+   ⚖️ 平台平衡 → Bilibili (YT:15 > BL:0)
+🔵 bilibili_search | Manus AI公司成功原因深度解析 最新
+🛠️  Tool Registered: web_search
+🛠️  Tool Registered: web_scrape
+🛠️  Tool Registered: youtube_search
+🛠️  Tool Registered: youtube_monitor
+🛠️  Tool Registered: bilibili_search
+🛠️  Tool Registered: bilibili_monitor
+🔨 执行: bilibili_search...
+[Bilibili] ✅ 已加载用户凭证
+[Bilibili] 🔍 智能搜索: Manus AI公司成功原因深度解析 最新
+📄 [阶段1] 智能分页扫描（最多 100 条）...
+   抓取第 1 页...
+   ✅ 第 1 页获取 18 条（平均播放: 35461）
+   抓取第 2 页...
+   ⚠️ 第 2 页质量下降（14147 vs 35461），提前停止
+   📊 智能分页完成：1 页，共 38 条
+✅ [阶段1] 扫描到 38 条基础数据
+🎯 [阶段2] 计算爆款分（详细处理 15 条）...
+   Top 3 爆款分: 0.35, 0.30, 0.18
+✅ [阶段2] 爆款排序完成，top 15 识别
+📊 [阶段3] 补充 top 15 详细信息...
+   补充详情 1/13: 【中配】是的，AI会夺走你的工作。但接下来发生的事情更糟 -...
+   补充详情 2/13: Manus创始人：深度干货！上下文工程的最佳实践...
+   补充详情 3/13: 为什么Manus做通用智能体，注定失败？智能体基本概念详解。...
+   补充详情 4/13: 马斯克和黄仁勋：为什么说 AI 泡沫没那么可怕？...
+   补充详情 5/13: LangChain与Manus的AI智能体上下文工程...
+   补充详情 6/13: AI觉醒的那天，人类社会将发生什么？？2027年实现AGI，...
+   补充详情 7/13: 《Manus 1.5 全面升級！AI 速度快 4 倍、AI ...
+   补充详情 8/13: 基于 LangChain 与 Manus 的 AI 智能体上...
+   补充详情 9/13: 花旗闭门会-中国ai和机器人供应链调研，PCB、CCL、液冷...
+   补充详情 10/13: AI 泡沫？黄仁勋：你问错问题了——英伟达财报里的真正故事...
+   补充详情 11/13: 【中配】英伟达称“我们不是安然公司”：AI泡沫、芯片折旧与行...
+   补充详情 12/13: 【4k高清】最新深度采访：OpenAI前创始人首席科学家ll...
+   补充详情 13/13: 普通人可以用AI做什么？AI搞钱60天变现上千 我的实战经验...
+✅ [Bilibili] 完成！扫描 38 条 → 返回 13 条爆款
+✅ 结果: Found 13 viral videos on Bilibili for 'Manus AI公司成功原因深度解析 最新' (scanned 38 total)
+   ⚠️ 质量检查: adjust_params - 预期是获取Manus AI公司成功原因的深度解析视频，但实际结果首条即为无关AGI纪录片，表明搜索未命中核 心主题。数量足够（15项），但相关性/质量为0，多样性未知。非临时问题（如网络），而是参数匹配
+     • 搜索结果与预期主题高度不相关：返回的视频标题讨论AI夺走工作和AGI通用话题，而非'Manus AI公司成功原因深度解析'
+     • 结果质量低，仅显示一个示例视频，但从标题看整体相关性差，可能为模糊匹配AI内容
+   🔵 +13 条
+
+🔍 动态生成博主任务: 发现4个博主
+   [1] Carson Reed (youtube, high) - identifier: carsonreed
+   [2] AI Agents Podcast (youtube, medium) - identifier: @ai-agents-podcast
+   [3] Lindy Drope (youtube, medium) - identifier: Lindy Drope
+   [4] Fei Fei Li (youtube, low) - identifier: Fei Fei Li
+   🌿 顺藤摸瓜: +4 博主任务
+🔴 youtube_search | Carson Reed AI公司Manus为什么成功
+🛠️  Tool Registered: web_search
+🛠️  Tool Registered: web_scrape
+🛠️  Tool Registered: youtube_search
+🛠️  Tool Registered: youtube_monitor
+🛠️  Tool Registered: bilibili_search
+🛠️  Tool Registered: bilibili_monitor
+🔨 执行: youtube_search...
+🔍 [YouTube] 三阶段搜索: Carson Reed AI公司Manus为什么成功
+📄 [阶段1] 快速扫描 50 条（详细处理 15 条）...
+✅ [阶段1] 扫描到 13 条基础数据
+🎯 [阶段2] 计算爆款分...
+   Top 3 爆款分: 0.39, 0.31, 0.28
+✅ [阶段2] 排序完成，top 15 爆款识别
+📊 [阶段3] 提取 top 15 详细信息...
+   提取详情 1/13: The Wisdom of Father Brown 📖✨...
+   提取详情 2/13: The Grey Room by Eden Phillpotts 🏚️🔍 | C...
+   提取详情 3/13: The King in Yellow 👑💀 | A Haunting Tale ...
+   提取详情 4/13: Moon of Madness 🌕🔮 | Classic Mystery Thr...
+   提取详情 5/13: The Tickencote Treasure 🏴‍☠️💎 | A Thrill...
+   提取详情 6/13: Mission of Fear 🔍💣 Classic Crime Thrille...
+   提取详情 7/13: The Albert Gate Mystery 🕵️‍♂️🔍 | A Class...
+   提取详情 8/13: 🔍 Suspense by Isabel Ostrander | A Thril...
+   提取详情 9/13: 砍柴的乐趣：实用技巧与真实的乡村氛围...
+   提取详情 10/13: 🕵️‍♂️ The Hospital Murders | A Chilling ...
+   提取详情 11/13: 📚 The Avalanche: A Mystery Story 🌌 | Ger...
+   提取详情 12/13: The Curse of the Reckaviles 🏰🕯️ A Gothic...
+   提取详情 13/13: The Devil in Iron 🔥👹 | A Classic Sword &...
+✅ [YouTube] 完成！返回 13 条爆款内容
+✅ 结果: Found 13 videos for 'Carson Reed AI公司Manus为什么成功'
+   ⚠️ 质量检查: adjust_params - 预期是获取Carson Reed关于其AI公司Manus成功原因的高质量YouTube视频，但实际结果首视频标题完全无关 （Father Brown故事），表明搜索未命中目标主题，相关性为0。数量未知但
+     • 相关性极低：返回的第一个视频标题'The Wisdom of Father Brown'与预期主题'Carson Reed AI公司Manus为什么成功'完全无关，看似文 学或故事内容，而非AI公司相关
+     • 可能整个结果集质量低下，未展示更多但首项已暴露问题
+   🔴 +13 条
+   ⚖️ 引擎平衡 → 引擎1 (E2:28 > E1:13)
+🔴 youtube_search | AI Agents Podcast AI公司Manus为什么成功
+🛠️  Tool Registered: web_search
+🛠️  Tool Registered: web_scrape
+🛠️  Tool Registered: youtube_search
+🛠️  Tool Registered: youtube_monitor
+🛠️  Tool Registered: bilibili_search
+🛠️  Tool Registered: bilibili_monitor
+🔨 执行: youtube_search...
+🔍 [YouTube] 三阶段搜索: AI Agents Podcast AI公司Manus为什么成功
+📄 [阶段1] 快速扫描 50 条（详细处理 15 条）...
+✅ [阶段1] 扫描到 50 条基础数据
+🎯 [阶段2] 计算爆款分...
+   Top 3 爆款分: 2.69, 1.07, 1.06
+✅ [阶段2] 排序完成，top 15 爆款识别
+📊 [阶段3] 提取 top 15 详细信息...
+   提取详情 1/15: How To Start A Business With No Money.....
+   提取详情 2/15: I built 5 AI Agents in 36 Minutes to sav...
+   提取详情 3/15: $100M CEO Explains How to Build A Brand ...
+   提取详情 4/15: Watch me Create a $10k Month Business in...
+   提取详情 5/15: Bill Gates 1 Second Income - बिल गेट्स क...
+   提取详情 6/15: 10 Insane AI Agent Use Cases in n8n! (st...
+   提取详情 7/15: Making $$$ with MicroSaaS (I might delet...
+   提取详情 8/15: How to use AI to make extra money...
+   提取详情 9/15: 关税大棒下的苹果：一场全球供应链的迁徙风暴【深度】...
+   提取详情 10/15: Stop Learning n8n in 2025... Learn THIS ...
+   提取详情 11/15: 7 AI Business Ideas That Will Make You a...
+   提取详情 12/15: 12 Income Ideas to Earn from AI...
+   提取详情 13/15: 再聊黄仁勋“量子春晚”：只有混战、没有共识的量子计算界【深度】...
+   提取详情 14/15: Top 7 Ways to Make Money with AI WITHOUT...
+   提取详情 15/15: Strategic ChatGPT prompts 🤖...
+✅ [YouTube] 完成！返回 15 条爆款内容
+✅ 结果: Found 15 videos for 'AI Agents Podcast AI公司Manus为什么成功'
+   ⚠️ 质量检查: adjust_params - 预期明确要求'AI Agents Podcast'频道的AI公司Manus成功相关视频，但实际结果首条即无关商业视频，相关  性为0，质量差。数量未知但示例已失效。置信度高，因标题明显不符。建议调整参数：
+     • 结果视频标题'पैसे नसताना Business कसा होतो?'（翻译：无钱如何做生意）与预期主题'AI Agents Podcast AI公司Manus为什么成功'完   全无关，语言为马拉地语/印地语，非英语或中文AI相关内容
+     • 尽管指定了from_influencer '@ai-agents-podcast'，但返回内容未体现该频道特征，可能参数未正确过滤
+   🔴 +15 条
+
+============================================================
+📍 DISCOVERY
+
+────────────────────────────────────────────────────────────
+📊 双引擎进度仪表盘
+────────────────────────────────────────────────────────────
+├─ 🔴 引擎1 (头部博主监控):
+│  ├─ 发现博主: 4 个
+│  │  ├─ YouTube: 4 个
+│  │  └─ Bilibili: 0 个
+│  └─ 收集内容: 28 条
+│
+├─ 🔵 引擎2 (关键词搜索):
+│  └─ 收集内容: 28 条
+│
+├─ 📦 平台分布:
+│  ├─ YouTube: 43 条
+│  └─ Bilibili: 13 条
+│
+└─ 🎯 总进度: 56/50 条 (112%)
+────────────────────────────────────────────────────────────
+
+🎯 目标达成: 已收集 56/50 条
+
+--- 节点: 智能筛选 (Node 3: Filter V3) ---
+
+============================================================
+🧹 智能筛选
+   输入: 56 条 (🔴28 🔵28)
+   引擎1通过时效检查: 13/28
+📊 猎杀池播放中位数: 145967.0
+   引擎2通过时效检查: 14/28
+   引擎2符合筛选标准: 9/14
+   输出: 10 条
+
+
+--- 节点: 选题策划 (Node 4: Architect) ---
+📊 素材相关性分析:
+   用户查询: AI公司Manus为什么成功
+   相关性分数: 0.00%
+   匹配关键词: 无
+
+╔══════════════════════════════════════════════════════════════╗
+║  ⚠️  素材质量警告: 搜索结果与查询不匹配                        ║
+╚══════════════════════════════════════════════════════════════╝
+
+🎯 您的查询: AI公司Manus为什么成功
+📊 素材相关性: 0.0% (阈值: 30%)
+
+🔍 搜索到的内容主要讨论:
+   mystery, classic, and, madness, ai会夺走你的工作
+
+💡 建议:
+   1. 尝试更简洁的关键词 (如: "AI公司Manus为什么成功")
+   2. 检查拼写是否正确
+   3. 该主题可能数据不足（新公司/小众产品）
+
+❌ 已阻止生成不相关选题，避免"点红烧肉上土豆丝"
+
+
+======================================================================
+🎯 选题审核与选择 (Topic Selection & Review)
+💡 提示: 可在 config/settings.yaml 中关闭交互模式
+======================================================================
+
+⚠️ AI 未生成任何选题，您可以手动添加选题。
+
+📝 请手动添加选题:
+
+✏️ 开始添加选题 (至少添加一个):
+
+--- 选题 #1 ---
+标题 (必填, 回车结束):
