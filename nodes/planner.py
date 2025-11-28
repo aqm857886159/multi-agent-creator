@@ -1,15 +1,22 @@
 """
-规划大脑 v2.0 - 任务调度器
+规划大脑 v2.1 - 任务调度器
 核心改进:
 1. 任务队列化管理
 2. 智能任务选择（平台平衡 + 引擎平衡）
 3. 结构化日志输出
+4. 🔑 P1: 集成 PlatformBalancer 强制平衡
+5. 🔑 P1: 复述机制（目标提醒）
 """
 
 from typing import Dict, Any, List, Optional, Tuple
 from pydantic import BaseModel, Field
 from core.state import RadarState, TaskItem, TopicSearchQueries
 from core.llm import get_llm_with_schema
+from core.platform_balancer import (
+    get_platform_balancer, 
+    get_balance_summary,
+    BalanceMode
+)
 from datetime import datetime
 import sys
 import os
@@ -27,6 +34,9 @@ from utils.logger import (
 TARGET_TOTAL_ITEMS = 50
 MAX_PLAN_STEPS = 50
 
+# 🔑 P1: 全局平台平衡器
+_balancer = get_platform_balancer()
+
 
 class ToolCall(BaseModel):
     tool_name: str = Field(..., description="调用的工具名称")
@@ -42,15 +52,20 @@ class PlannerOutput(BaseModel):
 
 def run_planner(state: RadarState) -> Dict[str, Any]:
     """
-    规划器 v2.0 - 任务调度器
+    规划器 v2.1 - 任务调度器
 
     核心逻辑:
     1. 阶段管理 (init → discovery → collection → filtering)
     2. 任务队列初始化
     3. 智能任务选择
     4. 结构化日志输出
+    5. 🔑 P1: 复述机制（目标提醒）
+    6. 🔑 P1: 错误历史参考
     """
     collected = len(state.candidates)
+
+    # 🔑 P1: 复述机制 - 每次迭代打印目标提醒（Manus最佳实践）
+    _print_goal_recap(state, collected)
 
     # 只在初始化或达到目标时打印详细仪表盘
     if state.current_phase == "init" or collected >= TARGET_TOTAL_ITEMS:
@@ -313,10 +328,12 @@ def _initialize_task_queue(state: RadarState):
 
 def _select_next_task(state: RadarState) -> Optional[TaskItem]:
     """
-    智能任务选择
+    智能任务选择 v2.1
+    
+    🔑 P1 改进: 使用 PlatformBalancer 进行更智能的平衡
 
     策略:
-    1. 平台平衡: 如果YouTube比Bilibili多5条，优先选Bilibili任务
+    1. 平台平衡: 使用 PlatformBalancer（自适应模式）
     2. 引擎平衡: 如果引擎1比引擎2多10条，优先选引擎2任务
     3. 优先级排序: 在满足平衡的前提下，选择最高优先级任务
     4. 动态生成顺藤摸瓜任务
@@ -332,25 +349,24 @@ def _select_next_task(state: RadarState) -> Optional[TaskItem]:
             if added_count > 0:
                 # 返回第一个新添加的任务
                 return next((t for t in state.task_queue if t.status == "pending"), None)
-            # 如果都是重复的，返回None继续选择其他任务
         return None
 
-    # ========== 策略1: 平台平衡 ==========
-    youtube_count = len([c for c in state.candidates if c.platform == "youtube"])
-    bilibili_count = len([c for c in state.candidates if c.platform == "bilibili"])
-
-    if youtube_count > bilibili_count + 5:
-        bilibili_tasks = [t for t in pending_tasks if t.platform == "bilibili"]
-        if bilibili_tasks:
-            selected = max(bilibili_tasks, key=lambda t: t.priority)
-            print(f"   ⚖️ 平台平衡 → Bilibili (YT:{youtube_count} > BL:{bilibili_count})")
-            return selected
-
-    if bilibili_count > youtube_count + 5:
-        youtube_tasks = [t for t in pending_tasks if t.platform == "youtube"]
-        if youtube_tasks:
-            selected = max(youtube_tasks, key=lambda t: t.priority)
-            print(f"   ⚖️ 平台平衡 → YouTube (BL:{bilibili_count} > YT:{youtube_count})")
+    # ========== 策略1: 平台平衡（使用 PlatformBalancer）==========
+    # 获取平台统计
+    stats = _balancer.get_stats(state.candidates, state.task_queue)
+    
+    # 获取可用平台
+    available_platforms = list(set(t.platform for t in pending_tasks if t.platform in ["youtube", "bilibili"]))
+    
+    # 让平衡器决定优先平台
+    preferred_platform = _balancer.select_platform(stats, available_platforms)
+    
+    if preferred_platform:
+        platform_tasks = [t for t in pending_tasks if t.platform == preferred_platform]
+        if platform_tasks:
+            selected = max(platform_tasks, key=lambda t: t.priority)
+            print(f"   ⚖️ 平台平衡 → {preferred_platform.upper()} (YT:{stats.youtube_count} BL:{stats.bilibili_count})")
+            _balancer.record_execution(preferred_platform)
             return selected
 
     # ========== 策略2: 引擎平衡 ==========
@@ -362,6 +378,7 @@ def _select_next_task(state: RadarState) -> Optional[TaskItem]:
         if engine2_tasks:
             selected = max(engine2_tasks, key=lambda t: t.priority)
             print(f"   ⚖️ 引擎平衡 → 引擎2 (E1:{engine1_count} > E2:{engine2_count})")
+            _balancer.record_execution(selected.platform)
             return selected
 
     if engine2_count > engine1_count + 10:
@@ -369,10 +386,12 @@ def _select_next_task(state: RadarState) -> Optional[TaskItem]:
         if engine1_tasks:
             selected = max(engine1_tasks, key=lambda t: t.priority)
             print(f"   ⚖️ 引擎平衡 → 引擎1 (E2:{engine2_count} > E1:{engine1_count})")
+            _balancer.record_execution(selected.platform)
             return selected
 
     # ========== 策略3: 默认优先级 ==========
     selected = max(pending_tasks, key=lambda t: t.priority)
+    _balancer.record_execution(selected.platform)
     return selected
 
 
@@ -580,3 +599,93 @@ def _llm_generate_tasks(state: RadarState) -> List[TaskItem]:
     """
     # 暂时返回空列表，可以后续扩展
     return []
+
+
+# ============ P1: 复述机制 ============
+
+def _print_goal_recap(state: RadarState, collected: int):
+    """
+    🔑 P1: 复述机制 - 每次迭代打印目标提醒
+    
+    Manus 最佳实践：通过不断复述目标，将注意力引导到任务焦点
+    避免 LLM 在长任务链中"迷失方向"
+    """
+    # 只在非初始化阶段且有一定进度时打印
+    if state.current_phase == "init":
+        return
+    
+    # 每 5 次迭代打印一次完整提醒，其他时候打印简化版
+    step_count = len(state.plan_scratchpad)
+    
+    if step_count > 0 and step_count % 5 == 0:
+        # 完整提醒
+        youtube_count = len([c for c in state.candidates if c.platform == "youtube"])
+        bilibili_count = len([c for c in state.candidates if c.platform == "bilibili"])
+        
+        print(f"\n📌 【目标提醒】")
+        print(f"   🎯 目标: 收集 {TARGET_TOTAL_ITEMS} 条内容")
+        print(f"   📊 进度: {collected}/{TARGET_TOTAL_ITEMS} ({collected*100//TARGET_TOTAL_ITEMS}%)")
+        print(f"   ⚖️ 平台: YouTube={youtube_count} Bilibili={bilibili_count}")
+        
+        # 显示错误历史提醒（如果有）
+        if state.error_history:
+            recent_errors = state.error_history[-2:]
+            print(f"   ⚠️ 最近错误: {len(state.error_history)} 条")
+            for err in recent_errors:
+                print(f"      - {err.get('tool_name', 'unknown')}: {err.get('error', '')[:50]}")
+        
+        print()
+
+
+def _build_error_context(state: RadarState, limit: int = 3) -> str:
+    """
+    🔑 P1: 构建错误上下文供 LLM 参考
+    
+    返回最近的错误记录摘要，帮助 LLM 避免重复犯错
+    """
+    if not state.error_history:
+        return ""
+    
+    recent_errors = state.error_history[-limit:]
+    lines = ["【最近错误记录 - 请避免重复】"]
+    
+    for err in recent_errors:
+        tool = err.get("tool_name", "unknown")
+        error_type = err.get("error_type", "Error")
+        error_msg = err.get("error", "")[:80]
+        lines.append(f"- {tool}: [{error_type}] {error_msg}")
+    
+    return "\n".join(lines)
+
+
+def get_planner_context_summary(state: RadarState) -> str:
+    """
+    🔑 P1: 生成规划器上下文摘要
+    
+    用于在 LLM 调用时附加到 prompt 末尾，实现复述机制
+    """
+    collected = len(state.candidates)
+    youtube_count = len([c for c in state.candidates if c.platform == "youtube"])
+    bilibili_count = len([c for c in state.candidates if c.platform == "bilibili"])
+    
+    # 平衡状态
+    balance_summary = get_balance_summary(state.candidates, state.task_queue)
+    
+    # 任务队列状态
+    pending_count = len([t for t in state.task_queue if t.status == "pending"])
+    
+    summary = f"""
+【当前状态摘要】
+- 目标: 收集 {TARGET_TOTAL_ITEMS} 条内容
+- 进度: {collected}/{TARGET_TOTAL_ITEMS} ({collected*100//TARGET_TOTAL_ITEMS if TARGET_TOTAL_ITEMS > 0 else 0}%)
+- {balance_summary}
+- 待执行任务: {pending_count} 个
+- 当前阶段: {state.current_phase}
+"""
+    
+    # 添加错误上下文
+    error_context = _build_error_context(state)
+    if error_context:
+        summary += f"\n{error_context}"
+    
+    return summary
